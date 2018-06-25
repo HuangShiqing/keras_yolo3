@@ -24,6 +24,20 @@ else:
     seen = np.ndarray(shape=(1,), dtype='int32', buffer=weights_file.read(4))
 print('Weights Header: ', major, minor, revision, seen)
 
+conv_bias = np.ndarray(
+    shape=(32,),  # (32,),
+    dtype='float32',
+    buffer=weights_file.read(32 * 4))
+bn_weights = np.ndarray(
+    shape=(3, 32),
+    dtype='float32',
+    buffer=weights_file.read(32 * 12))
+bn_weight_list = [
+    bn_weights[0],  # scale gamma
+    conv_bias,  # shift beta
+    bn_weights[1],  # running mean
+    bn_weights[2]  # running var
+]
 weights_size = 32 * 3 * 3 * 3
 conv_weights = np.ndarray(
     shape=[32, 3, 3, 3],  # [32, 3, 3, 3],
@@ -31,7 +45,7 @@ conv_weights = np.ndarray(
     buffer=weights_file.read(weights_size * 4))
 conv_weights = np.transpose(conv_weights, [2, 3, 1, 0])
 conv_weights = [conv_weights]
-weights_file.close()
+# weights_file.close()
 
 input_layer = Input(shape=(416, 416, 3))
 conv_layer = Conv2D(
@@ -43,7 +57,11 @@ conv_layer = Conv2D(
     activation=None,
     padding='same',
     name='conv_1')(input_layer)
-
+conv_layer = (BatchNormalization(
+    weights=bn_weight_list))(conv_layer)
+conv_layer = LeakyReLU(alpha=0.1)(conv_layer)
+conv_layer = UpSampling2D(2)(conv_layer)
 sess = K.get_session()
-a = tf.global_variables("conv_1/convolution")
-h = sess.run(tf.global_variables("conv_1/convolution")[0])
+a = sess.run(conv_layer, feed_dict={input_layer: im_sized})
+
+exit()

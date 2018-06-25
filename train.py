@@ -139,4 +139,3 @@ def yolo3_loss(args):
                                                 from_logits=True)) / batch_size
         loss += loss_xy + loss_wh + loss_c + loss_class
     return loss
-# def loss():

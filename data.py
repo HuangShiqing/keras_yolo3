@@ -5,16 +5,7 @@ import cv2
 import numpy as np
 import copy
 
-
-# images_name = os.listdir(images_path)
-# abs_name = images_path + images_name[0]
-
-
-# images_name = os.path.abspath(images_name)
-
-
-# ann_name = os.listdir(annotations_path)
-# abs_ann = annotations_path + ann_name[0]
+from varible import *
 
 
 # <class 'list'>: ['2007_000027.jpg', [486, 500, [['person', 174, 101, 349, 351]]]]
@@ -86,7 +77,6 @@ def pascal_voc_clean_xml(ANN, pick, exclusive=False):
                     stat[current['name']] = 1
 
     print('\nStatistics:')
-    # _pp(stat)
     for i in stat: print('{}: {}'.format(i, stat[i]))
     print('Dataset size: {}'.format(len(dumps)))
 
@@ -314,18 +304,19 @@ def process_box(boxes):
     batch_size = 16
     base_grid_h = base_grid_w = 13
     net_w = net_h = 416
-    anchors = [10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326]
+    anchors = Gb_anchors
     anchors_BoundBox = [BoundBox(0, 0, anchors[2 * i], anchors[2 * i + 1]) for i in range(len(anchors) // 2)]
-    labels = ['car', 'person']
+    labels = Gb_label
 
     y_true = list()
     # initialize the inputs and the outputs
+    # TODO carefully think about the order of the y_true and anchors
     y_true.append(np.zeros((batch_size, 4 * base_grid_h, 4 * base_grid_w, 3,
-                            4 + 1 + len(labels))))  # desired network output 3
+                            4 + 1 + 80)))  # desired network output 3
     y_true.append(np.zeros((batch_size, 2 * base_grid_h, 2 * base_grid_w, 3,
-                            4 + 1 + len(labels))))  # desired network output 2
+                            4 + 1 + 80)))  # desired network output 2
     y_true.append(np.zeros((batch_size, 1 * base_grid_h, 1 * base_grid_w, 3,
-                            4 + 1 + len(labels))))  # desired network output 1
+                            4 + 1 + 80)))  # desired network output 1
 
     for instance_index in range(batch_size):
         # allobj_sized = [{'xmin': 96, 'name': 'person', 'ymin': 96, 'xmax': 304, 'ymax': 304},
@@ -384,8 +375,20 @@ def process_box(boxes):
     return y_true
 
 
-def data_generator(images_path, annotations_path, batch_size):
-    chunks = pascal_voc_clean_xml(annotations_path, "person")
+""""
+# Output shape
+        image_data     [Gb_batch_size, 416, 416, 3]
+        boxes_labeled  [[Gb_batch_size,52,52,3,85],[Gb_batch_size, 26,26,3,85],[Gb_batch_size,13,13,3,85]]
+"""
+
+
+def data_generator():
+    images_path = Gb_images_path
+    annotations_path = Gb_ann_path
+    batch_size = Gb_batch_size
+    pick = Gb_label
+
+    chunks = pascal_voc_clean_xml(annotations_path, pick)
     n = len(chunks)
     i = 0
     while True:
@@ -403,7 +406,7 @@ def data_generator(images_path, annotations_path, batch_size):
             # imgs_sized = imgs_sized[:, :, ::-1]  # BGR image
             # cv2.imwrite("C:/Users/john/Desktop/" + str(t) + '.jpg', imgs_sized)
 
-            if len(boxes_sized) is 0:  # in case the box become empty becase of the augmentation
+            if len(boxes_sized) is 0:  # in case all the box in a batch become empty becase of the augmentation
                 continue
 
             image_data.append(imgs_sized)
@@ -412,16 +415,10 @@ def data_generator(images_path, annotations_path, batch_size):
 
         image_data = np.array(image_data)
         # boxes_labeled = np.array(boxes_labeled)
-        yield image_data, boxes_labeled
+        yield [image_data, *boxes_labeled], np.zeros(batch_size)
 
+# a = data_generator()
+# for x in a:
+#     print('ok')
 
-# data_generator(images_path="D:/DeepLearning/data/VOCdevkit/VOC2012/JPEGImages/",
-#                annotations_path="D:/DeepLearning/data/VOCdevkit/VOC2012/Annotations/", batch_size=16)
-
-a = data_generator(images_path="D:/DeepLearning/data/VOCdevkit/VOC2012/JPEGImages/",
-                   annotations_path="D:/DeepLearning/data/VOCdevkit/VOC2012/Annotations/", batch_size=16)
-for img, box in a:
-    print('ok')
-# img, box = next(a)
-
-exit()
+# exit()
